@@ -191,118 +191,28 @@ const deepResolveValue = (value) => {
   }, {});
 };
 
-const bindingMap = {
-  classList: (target, source) => {
-    watch(() => {
-      const classNames = resolveValue(source);
+const createBinder = (bindingMap) => {
+  return {
+    bind: (target, source) => {
+      const binding = watch(() => {
+        const value = resolveValue(source);
 
-      [...target.classList].forEach((className) => {
-        target.classList.remove(className);
-      });
+        if (value == null) return;
 
-      classNames.forEach((className) => {
-        let oldValue = null;
-        watch(() => {
-          const newValue = resolveValue(className);
-          if (oldValue !== newValue) {
-            target.classList.remove(oldValue)
-            if (newValue != null) { 
-              target.classList.add(newValue);
-            }
-            oldValue = newValue;
-          }
-        }).start();
-      });
-    }).start();
-  },
-  children: (target, source) => {
-    watch(() => {
-      const value = resolveValue(source);
+        Object.entries(value).forEach(([key, value]) => {
+          const bindingFunction = bindingMap[key];
+          if (bindingMap[key] == null) return;
 
-      while (target.firstChild) {
-        target.removeChild(target.firstChild);
-      }
-
-      if (value == null) return;
-
-      const nodes = value.map((childSource) => {
-        const child = resolveValue(childSource);
-
-        if (child == null) return null;
-
-        if (child === Object(child)) {
-          const element = document.createElement(
-            resolveValue(child.tag) || "div"
-          );
-
-          domBinder.bind(element, child);
-
-          return element;
-        } else {
-          return document.createTextNode(child);
-        }
-      });
-
-      const fragment = document.createDocumentFragment();
-
-      nodes.forEach((node) => {
-        if (node == null) return;
-
-        fragment.appendChild(node);
-      });
-
-      target.appendChild(fragment);
-    }).start();
-  },
-  events: (target, source) => {
-    let oldEvents = null;
-    watch(() => {
-      const events = resolveValue(source);
-
-      if (oldEvents != null) {
-        Object.entries(oldEvents).forEach(([key, action]) => {
-          target.removeEventListener(key, action);
+          bindingFunction(target, value);
         });
-      }
-
-      oldEvents = {};
-
-      Object.entries(events).forEach(([key, actionSource]) => {
-        const action = resolveValue(actionSource);
-
-        oldEvents[key] = action;
-
-        target.addEventListener(key, action);
       });
-    }).start();
-  },
-};
 
-const domBinder = {
-  bind: (element, source) => {
-    const binding = watch(() => {
-      const value = resolveValue(source);
-  
-      if (value == null) return;
-  
-      Object.entries(value).forEach(([key, value]) => {
-        const bindingFunction = bindingMap[key];
-        if (bindingMap[key] == null) return;
-  
-        bindingFunction(element, value);
-      });
-    });
-  
-    binding.start();
-  
-    return binding;
-  },
-  defineBinding: (name, action) => {
-    bindingMap[name] = action;
-  },
-};
+      binding.start();
 
-// TODO refactor for generic createBinder
+      return binding;
+    },
+  };
+};
 
 window.mini = {
   watch,
@@ -313,7 +223,7 @@ window.mini = {
   resolveValue,
   deepResolveValue,
 
-  domBinder,
+  createBinder,
 };
 
 })();
