@@ -5,8 +5,7 @@ const {
     watch,
     state,
     computed,
-    domBinder,
-  }
+  },
 } = window;
 
 const basicWatchTest = () => {
@@ -75,6 +74,8 @@ const nestedWatchCleanupTest = () => {
 
 const view = state(null);
 
+window.globalState = state();
+
 const root = {
   classList: state(["a", "b", "c"]),
   children: state([
@@ -83,6 +84,11 @@ const root = {
       children: ["mini framework"],
     },
     "Hello, World!",
+    {
+      tag: "input",
+      attributes: { type: "text" },
+      value: globalState,
+    },
     {
       tag: "p",
       children: ["This is a paragraph element!"],
