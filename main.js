@@ -33,9 +33,19 @@ const conditionalWatchTest = () => {
     console.log("watching pureC", pureC.get());
   }).start();
 
-  watch(() => {
-    console.log("watching obs", obs.get());
-  }).start();
+  setTimeout(() => { obsA.set(1); }, 1000);
+  setTimeout(() => { obsB.set(8); }, 2000);
+  setTimeout(() => { obsC.set(false); }, 3000);
+  setTimeout(() => { obsA.set(2); }, 4000);
+  setTimeout(() => { obsB.set(9); }, 5000);
+  setTimeout(() => { obsC.set(true); }, 6000);
+  setTimeout(() => { obsA.set(3); }, 7000);
+  setTimeout(() => { obsB.set(10); }, 8000);
+
+  window.conditionalWatchTest = {
+    obsA, obsB, obsC,
+    pureC,
+  };
 };
 
 const nestedWatchCleanupTest = () => {
@@ -70,11 +80,19 @@ const nestedWatchCleanupTest = () => {
   updateStates();
 };
 
+//basicWatchTest();
+//conditionalWatchTest();
 //nestedWatchCleanupTest();
 
 const view = state(null);
 
-window.globalState = state();
+const globalState = {
+  firstName: state(''),
+  lastName: state(''),
+  fullName: computed(() => {
+    return `${globalState.firstName.get()} ${globalState.lastName.get()}`;
+  }),
+};
 
 const root = {
   classList: state(["a", "b", "c"]),
@@ -85,9 +103,24 @@ const root = {
     },
     "Hello, World!",
     {
-      tag: "input",
-      attributes: { type: "text" },
-      value: globalState,
+      children: [
+        {
+          tag: "input",
+          attributes: { type: "text" },
+          value: globalState.firstName,
+        },
+        {
+          tag: "input",
+          attributes: { type: "text" },
+          value: globalState.lastName,
+        },
+        {
+          tag: "p",
+          children: [
+            computed(() => `Full name: ${globalState.fullName.get()}`),
+          ],
+        },
+      ],
     },
     {
       tag: "p",
@@ -121,5 +154,6 @@ const views = {
 view.set(views.home);
 
 window.root = root;
+window.globalState = globalState;
 
 })();

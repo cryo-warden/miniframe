@@ -15,16 +15,16 @@ const domBinder = createBinder({
         target.classList.remove(className);
       });
 
-      classNames.forEach((className) => {
-        let oldValue = null;
+      classNames.forEach((classNameSource) => {
+        let oldClassName = null;
         watch(() => {
-          const newValue = resolveValue(className);
-          if (oldValue !== newValue) {
-            target.classList.remove(oldValue)
-            if (newValue != null) { 
-              target.classList.add(newValue);
+          const newClassName = resolveValue(classNameSource);
+          if (oldClassName !== newClassName) {
+            target.classList.remove(oldClassName)
+            if (newClassName != null) { 
+              target.classList.add(newClassName);
             }
-            oldValue = newValue;
+            oldClassName = newClassName;
           }
         }).start();
       });
@@ -32,22 +32,22 @@ const domBinder = createBinder({
   },
   children: (target, source) => {
     watch(() => {
-      const value = resolveValue(source);
+      const children = resolveValue(source);
 
       while (target.firstChild) {
         target.removeChild(target.firstChild);
       }
 
-      if (value == null) return;
+      if (children == null) return;
 
-      const nodes = value.map((childSource) => {
+      const nodes = children.map((childSource) => {
         const child = resolveValue(childSource);
 
         if (child == null) return null;
 
         if (child === Object(child)) {
           const element = document.createElement(
-            resolveValue(child.tag) || "div"
+            resolveValue(child.tag) || "div",
           );
 
           domBinder.bind(element, child);

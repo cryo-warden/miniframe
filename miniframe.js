@@ -75,23 +75,20 @@ const {
       };
 
       const unsubscribe = () => {
+        if (subscriptionSet.size < 1) return;
+
         for (const subscription of subscriptionSet) {
           subscription.unsubscribe();
         }
+
         subscriptionSet = new Set();
       };
 
-      let parentRerunSubscription = null;
       const start = () => {
-        const parentContext = getCurrentContext();
-        if (parentContext != null) {
-          parentRerunSubscription = 
-            parentContext.rerunSubscribable.subscribe(stop);
-        }
-
         runAction();
       };
 
+      let parentRerunSubscription = null;
       const stop = () => {
         if (parentRerunSubscription != null) {
           parentRerunSubscription.unsubscribe();
@@ -99,6 +96,12 @@ const {
 
         unsubscribe();
       };
+
+      const parentContext = getCurrentContext();
+      if (parentContext != null) {
+        parentRerunSubscription =
+          parentContext.rerunSubscribable.subscribe(stop);
+      }
 
       return { start, stop };
     },
@@ -140,14 +143,26 @@ class ComputedObservable extends Observable {
   constructor(compute) {
     super();
 
+    this.compute = compute;
+
+    let oldValue;
     this.watch = watch(() => {
       this.value = compute();
-      this.publish();
+
+      if (this.value !== oldValue) {
+        oldValue = this.value;
+        this.publish();
+      }
     });
   }
 
   get() {
-    super.subscribeContext();
+    this.subscribeContext();
+
+    if (!this.hasSubscribers()) {
+      const { compute } = this;
+      this.value = compute();
+    }
  
     return this.value;
   }
