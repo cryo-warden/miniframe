@@ -230,6 +230,7 @@ const createBinder = (bindingMap) => {
 };
 
 window.mini = {
+  queueAction,
   watch,
 
   state,

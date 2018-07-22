@@ -94,6 +94,47 @@ const globalState = {
   }),
 };
 
+const createTextField = ({
+  label,
+  source,
+}) => {
+  return {
+    classList: ["field"],
+    children: [{
+      tag: "label",
+      children: [
+        `${label} `,
+        {
+          tag: "input",
+          attributes: { type: "text" },
+          textInput: source,
+        },
+      ],
+    }],
+  };
+};
+
+const createField = ({
+  label,
+  type,
+  source,
+}) => {
+  return {
+    classList: ["field"],
+    children: [{
+      tag: "label",
+      children: [
+        `${label} `,
+        {
+          tag: "input",
+          attributes: { type },
+          value: source,
+        },
+      ],
+    }],
+  };
+};
+
 const root = {
   classList: state(["a", "b", "c"]),
   children: state([
@@ -104,15 +145,23 @@ const root = {
     "Hello, World!",
     {
       children: [
+        createTextField({
+          label: "First Name",
+          source: globalState.firstName,
+        }),
+        createTextField({
+          label: "Last Name",
+          source: globalState.lastName,
+        }),
         {
           tag: "input",
           attributes: { type: "text" },
-          value: globalState.firstName,
+          textInput: globalState.firstName,
         },
         {
           tag: "input",
           attributes: { type: "text" },
-          value: globalState.lastName,
+          textInput: globalState.lastName,
         },
         {
           tag: "p",
@@ -134,7 +183,7 @@ domBinder.bind(document.querySelector("#container"), root);
 
 const views = {
   home: {
-    children: ["This is a dynamic view."],
+    children: ["This is a dynamic view. Click this to switch to another view!"],
     events: {
       click: () => {
         view.set(views.other);
@@ -142,7 +191,7 @@ const views = {
     },
   },
   other: {
-    children: ["This is a different view."],
+    children: ["This is a different view. Click this to switch back!"],
     events: {
       click: () => {
         view.set(views.home);

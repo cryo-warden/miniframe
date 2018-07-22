@@ -1,6 +1,7 @@
 (() => {
 
 const {
+  queueAction,
   watch,
   resolveValue,
   createBinder,
@@ -118,6 +119,22 @@ const domBinder = createBinder({
   value: (target, source) => {
     target.addEventListener("change", (e) => {
       source.set(target.value);
+    });
+
+    watch(() => {
+      const value = source.get();
+      if (value != null) {
+        target.value = value;
+      }
+    }).start();
+  },
+  textInput: (target, source) => {
+    const updateSource = () => {
+      source.set(target.value);
+    };
+
+    target.addEventListener("keydown", (e) => {
+      queueAction(updateSource);
     });
 
     watch(() => {
