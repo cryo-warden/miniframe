@@ -1,28 +1,41 @@
-(() => {
-
-const {
+import {
   queueAction,
   watch,
   resolveValue,
   createBinder,
-} = mini;
+  type WritableObservable,
+} from "./miniframe";
 
-const domBinder = createBinder({
+type DOMBindingMap = {
+  tag: string;
+  classList: string[];
+  children: (string | DOMBindingMap)[];
+  events: Record<string, EventListener>;
+  attributes: Record<string, unknown>;
+  value: WritableObservable<string>;
+  textInput: WritableObservable<string>;
+};
+
+export const domBinder = createBinder<
+  HTMLElement | HTMLInputElement,
+  DOMBindingMap
+>({
+  tag: () => {},
   classList: (target, source) => {
     watch(() => {
       const classNames = resolveValue(source);
 
-      [...target.classList].forEach((className) => {
+      Array.from(target.classList).forEach((className) => {
         target.classList.remove(className);
       });
 
       classNames.forEach((classNameSource) => {
-        let oldClassName = null;
+        let oldClassName: string | null = null;
         watch(() => {
           const newClassName = resolveValue(classNameSource);
-          if (oldClassName !== newClassName) {
-            target.classList.remove(oldClassName)
-            if (newClassName != null) { 
+          if (oldClassName !== newClassName && oldClassName !== null) {
+            target.classList.remove(oldClassName);
+            if (newClassName != null) {
               target.classList.add(newClassName);
             }
             oldClassName = newClassName;
@@ -46,17 +59,17 @@ const domBinder = createBinder({
 
         if (child == null) return null;
 
-        if (child === Object(child)) {
-          const element = document.createElement(
-            resolveValue(child.tag) || "div",
-          );
-
-          domBinder.bind(element, child);
-
-          return element;
-        } else {
+        if (typeof child === "string") {
           return document.createTextNode(child);
         }
+
+        const element = document.createElement(
+          resolveValue(child.tag) || "div"
+        );
+
+        domBinder.bind(element, child);
+
+        return element;
       });
 
       const fragment = document.createDocumentFragment();
@@ -71,7 +84,7 @@ const domBinder = createBinder({
     }).start();
   },
   events: (target, source) => {
-    let oldEvents = null;
+    let oldEvents: Record<string, EventListener> | null = null;
     watch(() => {
       const events = resolveValue(source);
 
@@ -86,16 +99,16 @@ const domBinder = createBinder({
       Object.entries(events).forEach(([key, actionSource]) => {
         const action = resolveValue(actionSource);
 
-        oldEvents[key] = action;
+        oldEvents![key] = action;
 
         target.addEventListener(key, action);
       });
     }).start();
   },
   attributes: (target, source) => {
-    let oldAttributes = null;
+    let oldAttributes: any = null;
     watch(() => {
-      const attributes = resolveValue(source);
+      const attributes: any = resolveValue(source);
 
       if (oldAttributes != null) {
         Object.entries(oldAttributes).forEach(([key]) => {
@@ -108,7 +121,7 @@ const domBinder = createBinder({
       oldAttributes = {};
 
       Object.entries(attributes).forEach(([key, attributeSource]) => {
-        const attribute = resolveValue(attributeSource);
+        const attribute = resolveValue(attributeSource) as string;
 
         oldAttributes[key] = attribute;
 
@@ -118,19 +131,20 @@ const domBinder = createBinder({
   },
   value: (target, source) => {
     target.addEventListener("change", (e) => {
-      source.set(target.value);
+      // TODO Allow specification of writable sources in type system.
+      (source as any).set((target as HTMLInputElement).value);
     });
 
     watch(() => {
       const value = source.get();
       if (value != null) {
-        target.value = value;
+        (target as HTMLInputElement).value = value;
       }
     }).start();
   },
   textInput: (target, source) => {
     const updateSource = () => {
-      source.set(target.value);
+      source.set((target as HTMLInputElement).value);
     };
 
     target.addEventListener("keydown", (e) => {
@@ -140,12 +154,8 @@ const domBinder = createBinder({
     watch(() => {
       const value = source.get();
       if (value != null) {
-        target.value = value;
+        (target as HTMLInputElement).value = value;
       }
     }).start();
   },
 });
-
-window.domBinder = domBinder;
-
-})();

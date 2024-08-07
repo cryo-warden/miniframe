@@ -1,12 +1,6 @@
-(() => {
+import { domBinder, miniframe } from "..";
 
-const {
-  mini: {
-    watch,
-    state,
-    computed,
-  },
-} = window;
+const { watch, state, computed } = miniframe;
 
 const basicWatchTest = () => {
   const obs = state(5);
@@ -28,22 +22,40 @@ const conditionalWatchTest = () => {
   const obsA = state(0);
   const obsB = state(7);
   const obsC = state(true);
-  const pureC = computed(() => obsC.get() ? obsA.get() : obsB.get());
+  const pureC = computed(() => (obsC.get() ? obsA.get() : obsB.get()));
   watch(() => {
     console.log("watching pureC", pureC.get());
   }).start();
 
-  setTimeout(() => { obsA.set(1); }, 1000);
-  setTimeout(() => { obsB.set(8); }, 2000);
-  setTimeout(() => { obsC.set(false); }, 3000);
-  setTimeout(() => { obsA.set(2); }, 4000);
-  setTimeout(() => { obsB.set(9); }, 5000);
-  setTimeout(() => { obsC.set(true); }, 6000);
-  setTimeout(() => { obsA.set(3); }, 7000);
-  setTimeout(() => { obsB.set(10); }, 8000);
+  setTimeout(() => {
+    obsA.set(1);
+  }, 1000);
+  setTimeout(() => {
+    obsB.set(8);
+  }, 2000);
+  setTimeout(() => {
+    obsC.set(false);
+  }, 3000);
+  setTimeout(() => {
+    obsA.set(2);
+  }, 4000);
+  setTimeout(() => {
+    obsB.set(9);
+  }, 5000);
+  setTimeout(() => {
+    obsC.set(true);
+  }, 6000);
+  setTimeout(() => {
+    obsA.set(3);
+  }, 7000);
+  setTimeout(() => {
+    obsB.set(10);
+  }, 8000);
 
-  window.conditionalWatchTest = {
-    obsA, obsB, obsC,
+  (window as any).conditionalWatchTest = {
+    obsA,
+    obsB,
+    obsC,
     pureC,
   };
 };
@@ -53,11 +65,11 @@ const nestedWatchCleanupTest = () => {
   const innerState = state(100);
 
   watch(() => {
-    console.log('outer start', outerState.get());
+    console.log("outer start", outerState.get());
     watch(() => {
-      console.log('inner', innerState.get());
+      console.log("inner", innerState.get());
     }).start();
-    console.log('outer end', outerState.get());
+    console.log("outer end", outerState.get());
   }).start();
 
   let timeoutCount = 5;
@@ -84,54 +96,52 @@ const nestedWatchCleanupTest = () => {
 //conditionalWatchTest();
 //nestedWatchCleanupTest();
 
-const view = state(null);
+// WIP Fix typing.
+const view = state<any>(null);
 
 const globalState = {
-  firstName: state(''),
-  lastName: state(''),
-  fullName: computed(() => {
+  firstName: state(""),
+  lastName: state(""),
+  fullName: computed((): string => {
     return `${globalState.firstName.get()} ${globalState.lastName.get()}`;
   }),
 };
 
-const createTextField = ({
-  label,
-  source,
-}) => {
+const createTextField: any = ({ label, source }: any) => {
   return {
     classList: ["field"],
-    children: [{
-      tag: "label",
-      children: [
-        `${label} `,
-        {
-          tag: "input",
-          attributes: { type: "text" },
-          textInput: source,
-        },
-      ],
-    }],
+    children: [
+      {
+        tag: "label",
+        children: [
+          `${label} `,
+          {
+            tag: "input",
+            attributes: { type: "text" },
+            textInput: source,
+          },
+        ],
+      },
+    ],
   };
 };
 
-const createField = ({
-  label,
-  type,
-  source,
-}) => {
+const createField: any = ({ label, type, source }: any) => {
   return {
     classList: ["field"],
-    children: [{
-      tag: "label",
-      children: [
-        `${label} `,
-        {
-          tag: "input",
-          attributes: { type },
-          value: source,
-        },
-      ],
-    }],
+    children: [
+      {
+        tag: "label",
+        children: [
+          `${label} `,
+          {
+            tag: "input",
+            attributes: { type },
+            value: source,
+          },
+        ],
+      },
+    ],
   };
 };
 
@@ -177,9 +187,9 @@ const root = {
     },
     view,
   ]),
-};
+} as const;
 
-domBinder.bind(document.querySelector("#container"), root);
+domBinder.bind(document.querySelector("#container")!, root);
 
 const views = {
   home: {
@@ -202,7 +212,6 @@ const views = {
 
 view.set(views.home);
 
-window.root = root;
-window.globalState = globalState;
-
-})();
+// WIP
+(window as any).root = root;
+(window as any).globalState = globalState;
