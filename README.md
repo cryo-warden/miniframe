@@ -1,15 +1,18 @@
 # miniframe
 
-To install dependencies:
+## Development Setup
 
 ```bash
+# install dependencies
 bun install
+
+# test the app
+bun test
+
+# build the app, available under dist
+bun run build
 ```
 
-To run:
+## License
 
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.21. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+MIT

@@ -21,36 +21,44 @@ export const queueAction: (action: Action) => void = (action) => {
   queuedActionSet.add(action);
 };
 
-class Subscribable {
-  private actionSet = new Set<Action>();
+type Subscribable = {
+  hasSubscribers: () => boolean;
+  publish: () => void;
+  subscribe: (action: Action) => { unsubscribe: () => void };
+};
 
-  hasSubscribers() {
-    return this.actionSet.size > 0;
-  }
+const createSubscribable = (): Subscribable => {
+  const actionSet = new Set<Action>();
 
-  publish() {
-    if (this.actionSet.size < 1) return;
+  return {
+    hasSubscribers: () => {
+      return actionSet.size > 0;
+    },
 
-    for (const action of this.actionSet) {
-      queueAction(action);
-    }
-  }
+    publish: () => {
+      if (actionSet.size < 1) return;
 
-  subscribe(action: Action) {
-    this.actionSet.add(action);
+      for (const action of actionSet) {
+        queueAction(action);
+      }
+    },
 
-    return {
-      unsubscribe: () => {
-        this.actionSet.delete(action);
-      },
-    };
-  }
-}
+    subscribe: (action) => {
+      actionSet.add(action);
+
+      return {
+        unsubscribe: () => {
+          actionSet.delete(action);
+        },
+      };
+    },
+  };
+};
 
 type Subscription = { unsubscribe: () => void };
 type Context = {
   rerunSubscribable: Subscribable;
-  subscribeForRerun: <T>(observable: Observable<T>) => void;
+  subscribeForRerun: (subscribable: Subscribable) => void;
 };
 
 const contextStack: Context[] = [];
@@ -65,7 +73,7 @@ export const watch = (action: Action) => {
       const subscription = subscribable.subscribe(runAction);
       subscriptionSet.add(subscription);
     },
-    rerunSubscribable: new Subscribable(),
+    rerunSubscribable: createSubscribable(),
   };
 
   const runAction = () => {
@@ -108,100 +116,91 @@ export const watch = (action: Action) => {
   return { start, stop };
 };
 
-abstract class Observable<T> extends Subscribable {
-  abstract get(): T;
+type Observable<T> = {
+  get: () => T;
+};
 
-  subscribeContext() {
-    const context = getCurrentContext();
-    if (context != null) {
-      context.subscribeForRerun(this);
-    }
+const subscribeContext = (subscribable: Subscribable) => {
+  const context = getCurrentContext();
+  if (context != null) {
+    context.subscribeForRerun(subscribable);
   }
-}
+};
 
-class WriteableObservable<T> extends Observable<T> {
-  private value;
+export type WritableObservable<T> = {
+  get: () => T;
+  set: (value: T) => void;
+};
 
-  constructor(value: T) {
-    super();
+export const state = <T>(initialValue: T): WritableObservable<T> => {
+  let value = initialValue;
+  const subscribable = createSubscribable();
 
-    this.value = value;
-  }
+  return {
+    get: () => {
+      subscribeContext(subscribable);
+      return value;
+    },
+    set: (newValue) => {
+      if (newValue === value) return;
 
-  get() {
-    this.subscribeContext();
+      value = newValue;
 
-    return this.value;
-  }
+      subscribable.publish();
+    },
+  };
+};
 
-  set(newValue: T) {
-    if (newValue === this.value) return;
+export const computed = <T>(compute: () => T): Observable<T> => {
+  let value: T | undefined;
+  let oldValue: T | undefined;
+  const subscribable = createSubscribable();
+  const { subscribe } = subscribable;
+  subscribable.subscribe = (action) => {
+    watcher.start();
 
-    this.value = newValue;
-
-    this.publish();
-  }
-}
-
-class ComputedObservable<T> extends Observable<T> {
-  private compute;
-  private watch;
-  private value: T | undefined;
-
-  constructor(compute: () => T) {
-    super();
-
-    this.compute = compute;
-
-    let oldValue: T;
-    this.watch = watch(() => {
-      this.value = compute();
-
-      if (this.value !== oldValue) {
-        oldValue = this.value;
-        this.publish();
-      }
-    });
-  }
-
-  get() {
-    this.subscribeContext();
-
-    if (!this.hasSubscribers()) {
-      const { compute } = this;
-      this.value = compute();
-    }
-
-    // TODO Check for possible cases of undefined passing through.
-    return this.value!;
-  }
-
-  subscribe(action: Action) {
-    this.watch.start();
-
-    const subscription = super.subscribe(action);
+    const subscription = subscribe(action);
 
     return {
       unsubscribe: () => {
         subscription.unsubscribe();
 
-        if (!this.hasSubscribers()) {
-          this.watch.stop();
+        if (!subscribable.hasSubscribers()) {
+          watcher.stop();
         }
       },
     };
-  }
-}
+  };
 
-export const state = <T>(value: T) => new WriteableObservable(value);
+  const watcher = watch(() => {
+    value = compute();
 
-export const computed = <T>(compute: () => T) =>
-  new ComputedObservable(compute);
+    if (value !== oldValue) {
+      oldValue = value;
+      subscribable.publish();
+    }
+  });
+
+  return {
+    get: () => {
+      subscribeContext(subscribable);
+
+      if (!subscribable.hasSubscribers()) {
+        value = compute();
+      }
+
+      // TODO Check for possible cases of undefined passing through.
+      return value!;
+    },
+  };
+};
 
 type Resolvable<T> = Observable<T> | T;
 
 export const resolveValue = <T>(value: Resolvable<T>): T => {
-  return value instanceof Observable ? value.get() : value;
+  return typeof value === "object" && value != null && "get" in value
+    ? value.get()
+    : value;
 };
 
 // WIP Create a type that resolves other types.
@@ -264,9 +263,4 @@ export const createBinder = <T, TBinding extends object>(
       return binding;
     },
   };
-};
-
-export type WritableObservable<T> = {
-  get: () => T;
-  set: (value: T) => void;
 };

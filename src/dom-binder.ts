@@ -6,7 +6,7 @@ import {
   type WritableObservable,
 } from "./miniframe";
 
-type DOMBindingMap = {
+export type DOMBindingMap = {
   tag: string;
   classList: string[];
   children: (string | DOMBindingMap)[];
@@ -16,11 +16,15 @@ type DOMBindingMap = {
   textInput: WritableObservable<string>;
 };
 
+export type DOMBindingSource = Parameters<typeof domBinder.bind>[1];
+
 export const domBinder = createBinder<
   HTMLElement | HTMLInputElement,
   DOMBindingMap
 >({
-  tag: () => {},
+  tag: () => {
+    // WIP Replace element entirely when tag changes?
+  },
   classList: (target, source) => {
     watch(() => {
       const classNames = resolveValue(source);
@@ -33,8 +37,10 @@ export const domBinder = createBinder<
         let oldClassName: string | null = null;
         watch(() => {
           const newClassName = resolveValue(classNameSource);
-          if (oldClassName !== newClassName && oldClassName !== null) {
-            target.classList.remove(oldClassName);
+          if (newClassName !== oldClassName) {
+            if (oldClassName !== null) {
+              target.classList.remove(oldClassName);
+            }
             if (newClassName != null) {
               target.classList.add(newClassName);
             }
@@ -47,25 +53,35 @@ export const domBinder = createBinder<
   children: (target, source) => {
     watch(() => {
       const children = resolveValue(source);
+      const oldChildren: ChildNode[] = [];
 
       while (target.firstChild) {
-        target.removeChild(target.firstChild);
+        oldChildren.push(target.removeChild(target.firstChild));
       }
 
       if (children == null) return;
 
       const nodes = children.map((childSource) => {
+        // WIP
+        // const oldChild = oldChildren[i];
         const child = resolveValue(childSource);
 
-        if (child == null) return null;
+        if (!child) return null;
 
         if (typeof child === "string") {
           return document.createTextNode(child);
         }
 
-        const element = document.createElement(
-          resolveValue(child.tag) || "div"
-        );
+        const tag = resolveValue(child.tag) || "div";
+
+        // WIP Must fix bindings of old node.
+        // if (oldChild instanceof HTMLElement && oldChild.tagName === tag) {
+        //   return oldChild;
+        // }
+
+        const element = document.createElement(tag);
+
+        // WIP Must retain these bindings and provide a way to update/replace the old one when retaining the previous node.
 
         domBinder.bind(element, child);
 

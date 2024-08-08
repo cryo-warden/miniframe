@@ -1,0 +1,13 @@
+body {
+  background: #111100;
+  color: #ffffdd;
+}
+
+.form {
+  &,
+  div,
+  input {
+    margin: 2px;
+    padding: 2px;
+  }
+}
